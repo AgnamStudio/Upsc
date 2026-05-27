@@ -1,0 +1,887 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UPSC Prelims Simulator - Agnam Studio</title>
+    <style>
+        /* --- Dynamic Theme Variables --- */
+        :root {
+            /* Dark Theme (Default) */
+            --bg-base: #0f172a;
+            --bg-glow: #1e293b;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --accent-gold: #fbbf24;
+            --accent-gold-dark: #d97706;
+            --accent-blue: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --correct: #22c55e;
+            --wrong: #ef4444;
+            
+            /* Ranks Colors */
+            --rank1: #cd7f32; /* Aspirant */
+            --rank2: #64748b; /* Prelims */
+            --rank3: #38bdf8; /* Mains */
+            --rank4: #a855f7; /* Interview */
+            --rank5: #f43f5e; /* IPS */
+            --rank6: #fbbf24; /* IAS */
+            --rank7: #06b6d4; /* Cabinet Sec */
+        }
+
+        /* Light Theme Override */
+        body.light-mode {
+            --bg-base: #f1f5f9;
+            --bg-glow: #e2e8f0;
+            --surface: #ffffff;
+            --surface-light: #cbd5e1;
+            --accent-gold: #d97706;
+            --accent-gold-dark: #b45309;
+            --accent-blue: #0284c7;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background-color: var(--bg-base); color: var(--text-main); 
+            overflow: hidden; height: 100vh; display: flex; flex-direction: column; align-items: center;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-container {
+            width: 100%; max-width: 600px; height: 100%; position: relative;
+            background: radial-gradient(circle at top, var(--bg-glow) 0%, var(--bg-base) 100%);
+            box-shadow: 0 0 30px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+            transition: background 0.3s;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 4px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* --- Loading Screen --- */
+        #loading-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-base); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid var(--surface-light);
+            border-top: 4px solid var(--accent-gold); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+
+        /* --- Screens --- */
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; padding: 20px; overflow-y: auto; position: absolute; top: 0; left: 0; }
+        .screen.active { display: flex; animation: fadeIn 0.4s ease-out forwards; }
+
+        /* --- Typography --- */
+        h1, h2, h3 { text-align: center; font-weight: 700; margin-bottom: 10px; }
+        .title-main { font-size: 2.2rem; color: var(--accent-gold); text-shadow: 0 2px 10px rgba(251, 191, 36, 0.2); text-transform: uppercase; letter-spacing: 2px; }
+        .subtitle { font-size: 1rem; color: var(--text-muted); text-align: center; margin-bottom: 30px; }
+
+        /* --- Buttons --- */
+        .btn { 
+            background: var(--surface); border: 1px solid var(--surface-light); color: var(--text-main); 
+            padding: 16px; margin: 8px 0; border-radius: 12px; font-size: 1.05rem; cursor: pointer; 
+            transition: all 0.2s; font-weight: 600; text-align: center; width: 100%;
+        }
+        .btn:hover:not(:disabled) { border-color: var(--accent-gold); background: var(--surface-light); transform: translateY(-2px); }
+        .btn:active:not(:disabled) { transform: translateY(1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-action { background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-dark) 100%); color: #fff; border: none; font-weight: bold; box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3); }
+        .btn-action:hover:not(:disabled) { filter: brightness(1.1); }
+        body.light-mode .btn-action { color: #fff; }
+
+        /* --- Forms & Toggles --- */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; }
+        select { 
+            width: 100%; padding: 14px; background: var(--surface); color: var(--text-main); 
+            border: 1px solid var(--surface-light); border-radius: 10px; font-size: 1rem; outline: none; transition: border-color 0.3s;
+        }
+        select:focus { border-color: var(--accent-gold); }
+        
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--surface); border-radius: 10px; border: 1px solid var(--surface-light); margin-bottom: 10px; }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--surface-light); transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-gold); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* --- Gameplay UI --- */
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--surface); padding: 12px 15px; border-radius: 12px; border: 1px solid var(--surface-light); }
+        .game-info-text { font-size: 0.9rem; color: var(--accent-blue); font-weight: bold; }
+        .timer { font-size: 1.4rem; font-weight: bold; color: var(--accent-gold); font-variant-numeric: tabular-nums; }
+        .timer.warning { color: var(--wrong); }
+        
+        .question-box { 
+            background: var(--surface); border: 1px solid var(--surface-light); border-left: 4px solid var(--accent-gold);
+            border-radius: 12px; padding: 20px; font-size: 1.15rem; font-weight: 500; color: var(--text-main); 
+            margin-bottom: 20px; min-height: 120px; display: flex; align-items: center; line-height: 1.5; font-family: 'Georgia', serif;
+        }
+
+        .options-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .option-btn { background: var(--surface); border: 1px solid var(--surface-light); color: var(--text-main); padding: 15px; border-radius: 10px; font-size: 1rem; text-align: left; transition: all 0.2s; cursor: pointer; display: flex; align-items: center; line-height: 1.4; }
+        .option-btn span.letter { color: var(--text-muted); font-weight: bold; margin-right: 15px; background: rgba(128,128,128,0.2); padding: 5px 10px; border-radius: 6px; }
+        .option-btn:hover:not(:disabled) { border-color: var(--accent-gold); background: var(--surface-light); }
+        
+        .option-btn.selected { background: var(--accent-gold); border-color: var(--accent-gold-dark); color: #fff; }
+        .option-btn.selected span.letter { color: #000; background: rgba(255,255,255,0.4); }
+        .option-btn.correct { background: var(--correct); border-color: #16a34a; color: #fff; }
+        .option-btn.correct span.letter { color: #000; background: rgba(255,255,255,0.4); }
+        .option-btn.wrong { background: var(--wrong); border-color: #dc2626; color: #fff; }
+        .option-btn.wrong span.letter { color: #fff; background: rgba(0,0,0,0.3); }
+        .option-btn.hidden { opacity: 0; pointer-events: none; }
+
+        /* --- Lifelines --- */
+        .lifelines { display: flex; justify-content: center; gap: 15px; margin-top: auto; padding-bottom: 10px; }
+        .lifeline-btn { width: 70px; height: 70px; border-radius: 15px; background: var(--surface); border: 1px solid var(--surface-light); color: var(--accent-gold); display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s; }
+        .lifeline-btn i { font-size: 1.3rem; font-weight: bold; font-style: normal; }
+        .lifeline-btn span { font-size: 0.65rem; text-transform: uppercase; margin-top: 5px; color: var(--text-muted); font-weight: bold;}
+        .lifeline-btn:hover:not(:disabled) { border-color: var(--accent-gold); transform: scale(1.05); }
+        .lifeline-btn.used { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); transform: scale(0.95); }
+
+        /* --- Fact Overlay --- */
+        .fact-overlay { position: absolute; bottom: -100%; left: 0; width: 100%; padding: 25px 20px; background: var(--bg-base); border-top: 3px solid var(--accent-gold); box-shadow: 0 -10px 40px rgba(0,0,0,0.3); border-radius: 20px 20px 0 0; z-index: 150; transition: bottom 0.4s ease; display: flex; flex-direction: column; }
+        .fact-overlay.show { bottom: 0; }
+        .fact-status { font-size: 1.3rem; font-weight: bold; text-align: center; margin-bottom: 10px; }
+        .fact-status.win { color: var(--correct); }
+        .fact-status.lose { color: var(--wrong); }
+        .fact-text { font-size: 1.05rem; color: var(--text-main); margin-bottom: 20px; line-height: 1.6; padding: 15px; background: var(--surface); border-left: 3px solid var(--accent-gold); border-radius: 6px; }
+
+        /* --- Modals & Utilities --- */
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 200; padding: 20px; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease-out; }
+        .modal-content { background: var(--surface); border: 1px solid var(--surface-light); border-top: 4px solid var(--accent-gold); padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .chart-container { display: flex; align-items: flex-end; justify-content: space-around; height: 140px; margin: 20px 0; border-bottom: 1px solid var(--surface-light); padding-bottom: 5px; }
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; width: 22%; }
+        .bar { width: 100%; background: var(--accent-blue); border-radius: 4px 4px 0 0; transition: height 1s ease-out; }
+        .bar-label { margin-top: 8px; font-weight: bold; color: var(--text-main); font-size: 0.9rem;}
+        .bar-pct { font-size: 0.8rem; margin-bottom: 5px; color: var(--accent-blue); font-weight: bold; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .stat-card { background: var(--surface); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid var(--surface-light); }
+        .stat-card div:first-child { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+        .stat-value { font-size: 1.6rem; color: var(--accent-blue); font-weight: 700; margin-top: 5px; }
+        
+        .badges-container { display: flex; flex-direction: column; gap: 10px; margin: 15px 0; max-height: 250px; overflow-y: auto; padding-right: 5px;}
+        .badge { padding: 12px; border-radius: 8px; font-weight: bold; font-size: 0.9rem; background: var(--surface); border-left: 4px solid; display: flex; justify-content: space-between; align-items: center; }
+        
+        .ladder-progress { width: 100%; height: 8px; background: var(--surface); border-radius: 4px; margin-bottom: 8px; overflow: hidden; border: 1px solid var(--surface-light);}
+        .ladder-fill { height: 100%; background: linear-gradient(90deg, var(--accent-gold-dark) 0%, var(--accent-gold) 100%); width: 0%; transition: width 0.5s ease-out; }
+        
+        .footer-text { text-align: center; margin-top: auto; padding: 20px 0 10px 0; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        .quit-text { color: var(--text-muted); font-size: 0.9rem; text-decoration: underline; text-align: center; margin-top: 15px; cursor: pointer; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h2 style="color: var(--accent-gold); font-size: 1.5rem;" data-i18n="load_title">Initializing System...</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="load_sub">Preparing Syllabus Modules</p>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen active">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+            <h1 class="title-main" data-i18n="main_title">UPSC Prelims</h1>
+            <p class="subtitle" data-i18n="main_sub">Simulator (IAS / IPS)</p>
+            
+            <div style="background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--surface-light); margin-bottom: 30px; text-align: center;">
+                <p style="color:var(--accent-gold); font-size: 0.9rem; font-weight: bold; margin-bottom: 5px;" id="total-q-count">Database Connecting...</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;" data-i18n="main_desc">Standard conceptual & analytical UPSC questions. (Questions in English)</p>
+            </div>
+            
+            <button class="btn btn-action" onclick="playClick(); showScreen('tournament-intro')" data-i18n="btn_grand_test">Start Grand Test (50 Qs)</button>
+            <button class="btn" onclick="playClick(); openPracticeMenu()" data-i18n="btn_practice">Subject-wise Practice</button>
+            <button class="btn" onclick="playClick(); openProfile()" data-i18n="btn_profile">Aspirant Profile</button>
+            <button class="btn" onclick="playClick(); openSettings()" data-i18n="btn_settings">Settings</button>
+        </div>
+        <div class="footer-text">© 2026 Agnam Studio. <span data-i18n="rights">All Rights Reserved.</span></div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen">
+        <h2 style="color: var(--accent-gold); margin-bottom: 20px;" data-i18n="set_title">System Settings</h2>
+        
+        <div class="toggle-row">
+            <div>
+                <strong data-i18n="set_lang">Language (UI)</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">English / Hindi</div>
+            </div>
+            <select id="lang-select" style="width: auto; padding: 8px 15px;" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="hi">हिंदी</option>
+            </select>
+        </div>
+
+        <div class="toggle-row">
+            <div>
+                <strong data-i18n="set_theme">Dark Mode</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="set_theme_sub">Toggle application theme</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="toggle-row">
+            <div>
+                <strong data-i18n="set_vib">Haptic Feedback</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="set_vib_sub">Vibrate on interactions</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="vib-toggle" onchange="toggleVibration()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div style="margin-top: auto;">
+            <button class="btn btn-action" onclick="playClick(); showScreen('main-menu')" data-i18n="btn_back">Save & Return</button>
+        </div>
+    </div>
+
+    <!-- Tournament Intro -->
+    <div id="tournament-intro" class="screen">
+        <h2 data-i18n="gt_title">The Grand Test</h2>
+        <p style="text-align:center; margin-bottom: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;" data-i18n="gt_desc">Face 50 consecutive questions. 45 seconds per question. Like negative marking, one wrong answer ends the test.</p>
+        
+        <div style="background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--surface-light); margin-bottom: 20px;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--accent-blue);" data-i18n="gt_ranks">UPSC Milestones</h3>
+            <ul style="list-style: none; line-height: 2; font-weight: 600; font-size: 0.9rem;">
+                <li style="color: var(--rank1)">05 Correct: <span data-i18n="r1">Aspirant</span></li>
+                <li style="color: var(--rank2)">15 Correct: <span data-i18n="r2">Prelims Qualified</span></li>
+                <li style="color: var(--rank3)">25 Correct: <span data-i18n="r3">Mains Qualified</span></li>
+                <li style="color: var(--rank4)">35 Correct: <span data-i18n="r4">Interview Cleared</span></li>
+                <li style="color: var(--rank5)">40 Correct: <span data-i18n="r5">IPS Officer</span></li>
+                <li style="color: var(--rank6)">45 Correct: <span data-i18n="r6">IAS Officer</span></li>
+                <li style="color: var(--rank7)">50 Correct: <span data-i18n="r7">Cabinet Secretary</span> (Max)</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: auto; display:flex; flex-direction:column;">
+            <button class="btn btn-action" onclick="playClick(); startStoryMode()" data-i18n="btn_start_exam">Commence Examination</button>
+            <button class="btn" onclick="playClick(); showScreen('main-menu')" data-i18n="btn_back">Go Back</button>
+        </div>
+    </div>
+
+    <!-- Practice Mode Menu -->
+    <div id="topic-selector" class="screen">
+        <h2 style="margin-bottom: 20px; color: var(--accent-gold);" data-i18n="prac_title">Practice Modules</h2>
+        
+        <div style="flex-grow: 1; overflow-y: auto; padding-right: 5px;">
+            <div class="form-group">
+                <label data-i18n="prac_sub">GS Subject (Syllabus):</label>
+                <select id="sel-topic">
+                    <option value="All" data-i18n="opt_all_sub">Comprehensive (All Subjects)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="prac_diff">Difficulty Level:</label>
+                <select id="sel-diff">
+                    <option value="All" data-i18n="opt_all_diff">Mixed (UPSC Standard)</option>
+                    <option value="Easy">Factual</option>
+                    <option value="Medium">Conceptual</option>
+                    <option value="Hard">Analytical</option>
+                    <option value="Expert">Current / Obscure</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="prac_count">Number of Questions:</label>
+                <select id="sel-qcount">
+                    <option value="10">10 Qs</option>
+                    <option value="25">25 Qs</option>
+                    <option value="50">50 Qs</option>
+                    <option value="All" data-i18n="opt_all_qs">All Available</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="prac_time">Time Constraint:</label>
+                <select id="sel-timer">
+                    <option value="0" data-i18n="opt_no_time">Untimed (Analysis Mode)</option>
+                    <option value="45">45 Sec</option>
+                    <option value="60">60 Sec</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <button class="btn btn-action" onclick="playClick(); startPracticeMode()" data-i18n="btn_start_prac">Start Practice</button>
+            <button class="btn" onclick="playClick(); showScreen('main-menu')" data-i18n="btn_dash">Return to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Gameplay Screen -->
+    <div id="gameplay-screen" class="screen">
+        <div class="header-bar">
+            <div id="game-info" class="game-info-text">Q. 1 | GS Paper I</div>
+            <div id="timer-display" class="timer">45</div>
+        </div>
+        
+        <div id="ladder-container" style="display:none; margin-bottom: 15px;">
+            <div class="ladder-progress"><div id="ladder-fill" class="ladder-fill"></div></div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">
+                <span data-i18n="gp_rank">Rank Status</span><span id="ladder-text">0/50</span>
+            </div>
+        </div>
+
+        <div class="question-box" id="question-text">Loading secure question...</div>
+
+        <div class="options-grid">
+            <button class="option-btn" id="opt-A" onclick="selectOption('A')"><span class="letter">A</span><span class="text">Option A</span></button>
+            <button class="option-btn" id="opt-B" onclick="selectOption('B')"><span class="letter">B</span><span class="text">Option B</span></button>
+            <button class="option-btn" id="opt-C" onclick="selectOption('C')"><span class="letter">C</span><span class="text">Option C</span></button>
+            <button class="option-btn" id="opt-D" onclick="selectOption('D')"><span class="letter">D</span><span class="text">Option D</span></button>
+        </div>
+
+        <div class="lifelines">
+            <button class="lifeline-btn" id="btn-5050" onclick="use5050()"><i>50:50</i><span data-i18n="ll_50">Eliminate</span></button>
+            <button class="lifeline-btn" id="btn-poll" onclick="usePoll()"><i>📊</i><span data-i18n="ll_poll">Consensus</span></button>
+            <button class="lifeline-btn" id="btn-hint" onclick="useHint()"><i>💡</i><span data-i18n="ll_hint">Clue</span></button>
+        </div>
+        
+        <div class="quit-text" onclick="quitGame()" data-i18n="gp_quit">Submit Test Early</div>
+    </div>
+
+    <!-- Practice Fact Overlay -->
+    <div id="fact-panel" class="fact-overlay">
+        <div id="fact-status" class="fact-status win">Correct</div>
+        <div style="font-size: 0.85rem; color: var(--accent-gold); font-weight: bold; margin-bottom: 8px;">UPSC ANALYSIS:</div>
+        <div id="fact-body" class="fact-text">Explanation...</div>
+        <button class="btn btn-action" onclick="playClick(); nextPracticeQuestion()" data-i18n="btn_next">Next Question ➔</button>
+    </div>
+
+    <!-- Profile & Stats -->
+    <div id="profile-stats" class="screen">
+        <h2 style="color: var(--accent-blue);" data-i18n="prof_title">Aspirant Dossier</h2>
+        <div class="stats-grid">
+            <div class="stat-card"><div data-i18n="st_att">Test Attempts</div><div class="stat-value" id="stat-season">1</div></div>
+            <div class="stat-card"><div data-i18n="st_mil">Total Milestones</div><div class="stat-value" id="stat-titles">0</div></div>
+            <div class="stat-card"><div data-i18n="st_high">Highest Score</div><div class="stat-value" id="stat-highscore">0</div></div>
+            <div class="stat-card"><div data-i18n="st_prac">Practice Qs</div><div class="stat-value" id="stat-practice">0</div></div>
+        </div>
+        
+        <h3 style="margin-top: 15px; font-size: 1.1rem; color: var(--text-muted); text-align: left;" data-i18n="prof_clear">Clearances Achieved:</h3>
+        <div class="badges-container" id="badges-container"></div>
+        
+        <div style="margin-top: auto; display:flex; flex-direction:column;">
+            <button class="btn" style="background: #16a34a; color: #fff; border-color: #15803d; font-weight: bold;" onclick="playClick(); shareStats()" data-i18n="btn_share">📱 Share Score</button>
+            <button class="btn" onclick="playClick(); showScreen('main-menu')" data-i18n="btn_dash">Dashboard</button>
+        </div>
+        <div class="footer-text" style="padding-bottom: 0;">© 2026 Agnam Studio.</div>
+    </div>
+
+    <!-- Generic Modals -->
+    <div id="alert-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="alert-title" style="margin-bottom: 15px; color: var(--accent-gold); font-size: 1.3rem;">Notice</h3>
+            <p id="alert-message" style="margin-bottom: 25px; line-height: 1.5; color: var(--text-main);">Message goes here.</p>
+            <button class="btn btn-action" onclick="playClick(); closeModal('alert-modal'); nextActionCallback();" data-i18n="btn_ok">Understood</button>
+        </div>
+    </div>
+
+    <!-- Poll Modal -->
+    <div id="poll-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 5px; color: var(--accent-blue);" data-i18n="poll_title">Aspirant Consensus</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;" data-i18n="poll_desc">Note: The majority can be wrong in UPSC.</p>
+            <div class="chart-container" id="poll-chart"></div>
+            <button class="btn btn-action" onclick="playClick(); closeModal('poll-modal')" data-i18n="btn_close">Close Data</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+/* =========================================================================
+   1. USER SETTINGS & I18N (Internationalization)
+========================================================================= */
+const i18n = {
+    en: {
+        load_title: "Initializing System...", load_sub: "Preparing Syllabus Modules",
+        main_title: "UPSC Prelims", main_sub: "Simulator (IAS / IPS)",
+        main_desc: "Standard conceptual & analytical UPSC questions. (Questions in English)",
+        btn_grand_test: "Start Grand Test (50 Qs)", btn_practice: "Subject-wise Practice", btn_profile: "Aspirant Profile", btn_settings: "Settings",
+        rights: "All Rights Reserved.",
+        set_title: "System Settings", set_lang: "Language (UI)", set_theme: "Dark Mode", set_theme_sub: "Toggle application theme",
+        set_vib: "Haptic Feedback", set_vib_sub: "Vibrate on interactions", btn_back: "Go Back",
+        gt_title: "The Grand Test", gt_desc: "Face 50 consecutive questions. 45 seconds per question. Like negative marking, one wrong answer ends the test.",
+        gt_ranks: "UPSC Milestones", r1: "Aspirant", r2: "Prelims Qualified", r3: "Mains Qualified", r4: "Interview Cleared", r5: "IPS Officer", r6: "IAS Officer", r7: "Cabinet Secretary",
+        btn_start_exam: "Commence Examination",
+        prac_title: "Practice Modules", prac_sub: "GS Subject (Syllabus):", opt_all_sub: "Comprehensive (All)",
+        prac_diff: "Difficulty Level:", opt_all_diff: "Mixed (UPSC Standard)", prac_count: "Number of Questions:", opt_all_qs: "All Available",
+        prac_time: "Time Constraint:", opt_no_time: "Untimed (Analysis Mode)", btn_start_prac: "Start Practice", btn_dash: "Return to Dashboard",
+        gp_rank: "Rank Status", gp_quit: "Submit Test Early",
+        ll_50: "Eliminate", ll_poll: "Consensus", ll_hint: "Clue",
+        btn_next: "Next Question ➔",
+        prof_title: "Aspirant Dossier", st_att: "Test Attempts", st_mil: "Total Milestones", st_high: "Highest Score", st_prac: "Practice Qs",
+        prof_clear: "Clearances Achieved:", btn_share: "📱 Share Score",
+        btn_ok: "Understood", poll_title: "Aspirant Consensus", poll_desc: "Note: The majority can be wrong in UPSC.", btn_close: "Close Data"
+    },
+    hi: {
+        load_title: "सिस्टम लोड हो रहा है...", load_sub: "सिलेबस तैयार किया जा रहा है",
+        main_title: "UPSC प्रीलिम्स", main_sub: "सिम्युलेटर (IAS / IPS)",
+        main_desc: "मानक वैचारिक और विश्लेषणात्मक UPSC प्रश्न। (प्रश्न अंग्रेजी में हैं)",
+        btn_grand_test: "ग्रैंड टेस्ट शुरू करें (50 Qs)", btn_practice: "विषयवार अभ्यास (Practice)", btn_profile: "उम्मीदवार प्रोफाइल", btn_settings: "सेटिंग्स",
+        rights: "सर्वाधिकार सुरक्षित।",
+        set_title: "सिस्टम सेटिंग्स", set_lang: "भाषा (UI)", set_theme: "डार्क मोड", set_theme_sub: "एप्लिकेशन थीम बदलें",
+        set_vib: "वाइब्रेशन (Haptic)", set_vib_sub: "बटन दबाने पर वाइब्रेट करें", btn_back: "वापस जाएं",
+        gt_title: "ग्रैंड टेस्ट", gt_desc: "लगातार 50 सवालों का सामना करें। हर सवाल के लिए 45 सेकंड। एक गलती पर टेस्ट खत्म (Negative Marking)।",
+        gt_ranks: "UPSC माइलस्टोन्स", r1: "एस्पिरेंट (Aspirant)", r2: "प्रीलिम्स पास", r3: "मेन्स पास", r4: "इंटरव्यू पास", r5: "IPS अधिकारी", r6: "IAS अधिकारी", r7: "कैबिनेट सचिव",
+        btn_start_exam: "परीक्षा शुरू करें",
+        prac_title: "अभ्यास मोड", prac_sub: "GS विषय (सिलेबस):", opt_all_sub: "संपूर्ण (सभी विषय)",
+        prac_diff: "कठिनाई का स्तर:", opt_all_diff: "मिश्रित (UPSC लेवल)", prac_count: "सवालों की संख्या:", opt_all_qs: "सभी (Endless)",
+        prac_time: "समय सीमा:", opt_no_time: "बिना समय (Analysis Mode)", btn_start_prac: "अभ्यास शुरू करें", btn_dash: "डैशबोर्ड पर जाएं",
+        gp_rank: "रैंक स्टेटस", gp_quit: "टेस्ट बीच में छोड़ें",
+        ll_50: "आधा-आधा", ll_poll: "जनमत", ll_hint: "सुराग",
+        btn_next: "अगला सवाल ➔",
+        prof_title: "उम्मीदवार प्रोफाइल", st_att: "कुल कोशिशें", st_mil: "कुल रैंक्स", st_high: "सर्वाधिक स्कोर", st_prac: "अभ्यास सवाल",
+        prof_clear: "प्राप्त उपलब्धियां:", btn_share: "📱 स्कोर शेयर करें",
+        btn_ok: "ठीक है", poll_title: "जनमत (Audience Poll)", poll_desc: "ध्यान रहे, UPSC में भीड़ गलत भी हो सकती है।", btn_close: "बंद करें"
+    }
+};
+
+let userSettings = JSON.parse(localStorage.getItem('upsc_settings')) || { theme: 'dark', language: 'en', vibration: true };
+
+function saveSettings() { localStorage.setItem('upsc_settings', JSON.stringify(userSettings)); }
+
+function applySettings() {
+    // Theme
+    if (userSettings.theme === 'light') { document.body.classList.add('light-mode'); document.getElementById('theme-toggle').checked = false; }
+    else { document.body.classList.remove('light-mode'); document.getElementById('theme-toggle').checked = true; }
+    
+    // Vibe
+    document.getElementById('vib-toggle').checked = userSettings.vibration;
+    
+    // Lang
+    document.getElementById('lang-select').value = userSettings.language;
+    updateUILanguage();
+}
+
+function toggleTheme() { userSettings.theme = document.getElementById('theme-toggle').checked ? 'dark' : 'light'; applySettings(); saveSettings(); playClick(); }
+function toggleVibration() { userSettings.vibration = document.getElementById('vib-toggle').checked; saveSettings(); playClick(); }
+function changeLanguage(lang) { userSettings.language = lang; applySettings(); saveSettings(); playClick(); }
+
+function updateUILanguage() {
+    const lang = userSettings.language;
+    const texts = i18n[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (texts[key]) el.innerHTML = texts[key];
+    });
+}
+
+function playClick() {
+    if (userSettings.vibration && navigator.vibrate) navigator.vibrate(15);
+}
+
+/* =========================================================================
+   2. EXTENDED UPSC DATABASE (Covers full syllabus)
+========================================================================= */
+let questionsDB = [];
+let qId = 1;
+
+const upscPolity = { "Article 32": "Right to Constitutional Remedies", "Article 14": "Equality before law", "Article 21": "Protection of life and personal liberty", "42nd Amendment (1976)": "Added 'Socialist, Secular, Integrity' to the Preamble", "44th Amendment (1978)": "Removed the Right to Property", "Tenth Schedule": "Anti-Defection Law provisions", "Ninth Schedule": "Protects land reform laws from judicial review", "Basic Structure Doctrine": "Established in Kesavananda Bharati case (1973)", "Writ of Mandamus": "A command to a public official to perform duties", "Writ of Quo-Warranto": "Inquire into the legality of a claim to a public office", "Money Bill": "Requires prior recommendation of the President", "Finance Commission": "Article 280, recommends distribution of taxes", "CAG": "Guardian of the public purse", "Election Commission": "Article 324, conducts parliamentary elections", "Article 356": "President's Rule in a State" };
+const upscEconomy = { "Repo Rate": "Rate at which RBI lends short-term money to commercial banks", "Reverse Repo Rate": "Rate at which RBI borrows from commercial banks", "CRR": "Fraction of total deposits banks must keep with RBI in cash", "SLR": "Percentage of deposits banks maintain in liquid assets", "Gini Coefficient": "A statistical measure of wealth inequality", "Phillips Curve": "Inverse relationship between inflation and unemployment", "Stagflation": "High inflation, high unemployment, stagnant demand", "Core Inflation": "Inflation excluding volatile items like food and energy", "Fiscal Deficit": "Difference between total revenue and total expenditure", "Current Account Deficit": "When total imports of goods/services is greater than exports", "FDI": "Investment made by a firm into business interests in another country", "BASEL Norms": "International regulatory accords for risk management in banking", "NPA": "A loan where principal/interest is overdue for 90 days", "Crowding Out Effect": "Govt borrowing reduces private sector investment", "Monetary Policy Committee": "Statutory body fixing the benchmark interest rate" };
+const upscHistoryModern = { "Surat Split (1907)": "Division of INC into Moderates and Extremists", "Morley-Minto Reforms (1909)": "Introduced separate electorates for Muslims", "Montagu-Chelmsford Reforms (1919)": "Introduced 'Dyarchy' in provincial subjects", "Government of India Act 1935": "Provided for an All-India Federation and Provincial Autonomy", "Cripps Mission (1942)": "Proposed Dominion Status for India after WWII", "Permanent Settlement (1793)": "Fixed land revenue in Bengal and Bihar", "Ryotwari System": "Taxes collected directly from peasants", "Subsidiary Alliance": "System to subjugate Indian powers without fighting", "Doctrine of Lapse": "Annexation policy for states lacking a natural heir", "Champaran Satyagraha (1917)": "Gandhi's first civil disobedience against tinkathia system", "Rowlatt Act (1919)": "Imprisonment without trial and conviction", "Dandi March (1930)": "Initiated the Civil Disobedience Movement", "Poona Pact (1932)": "Abandoned separate electorates for depressed classes" };
+const upscEnvironment = { "Ecotone": "Zone of transition between two ecological communities", "Keystone Species": "Species whose loss leads to major ecosystem changes", "Biomagnification": "Increasing concentration of toxic substances in food chains", "Eutrophication": "Water body becoming enriched with minerals/nutrients", "Ramsar Convention": "International treaty for conservation of wetlands", "Montreux Record": "Register of wetland sites facing ecological changes", "CITES": "Treaty protecting endangered plants and animals from trade", "Minamata Convention": "Global treaty addressing mercury pollution", "Stockholm Convention": "Treaty protecting against Persistent Organic Pollutants", "Kyoto Protocol": "Treaty committing to reduce greenhouse gas emissions", "Montreal Protocol": "Agreement to protect stratospheric ozone layer", "Agenda 21": "UN action plan for sustainable development", "Bioremediation": "Using microorganisms to treat contaminated media" };
+const upscGeography = { "Laterite Soil": "Formed under high temp and heavy rainfall, rich in iron", "Black Soil (Regur)": "Ideal for cotton, known for self-ploughing capacity", "Alluvial Soil": "Most widespread soil in India, highly fertile", "Roaring Forties": "Strong westerly winds in the Southern Hemisphere", "El Nino": "Abnormal warming of surface ocean waters in eastern Pacific", "Coriolis Force": "Deflects moving objects to the right in northern hemisphere", "Western Disturbances": "Extratropical storms bringing winter rain to NW India", "Albedo": "Measure of diffuse reflection of solar radiation", "Fold Mountains": "Mountains formed by effects of folding (e.g., Himalayas)", "Tsunami": "Waves caused by displacement of large volume of water", "Western Ghats": "Continuous mountain range, a biodiversity hotspot", "Jet Streams": "Fast flowing, narrow air currents in the tropopause" };
+const upscArtCulture = { "Bhimbetka": "Prehistoric rock shelter paintings in Madhya Pradesh", "Stupa": "A hemispherical structure containing Buddhist relics", "Gandhara Art": "Greco-Buddhist art style developed in the northwest", "Mathura Art": "Indigenous Indian art style utilizing red sandstone", "Nagara Style": "North Indian temple architecture with a curvilinear Shikhara", "Dravida Style": "South Indian temple architecture with a pyramidal Vimana", "Kathakali": "Classical dance-drama of Kerala with elaborate makeup", "Bharatnatyam": "Classical dance of Tamil Nadu, known for precise geometry", "Carnatic Music": "Classical music system of Southern India", "Hindustani Music": "Classical music system of Northern India, influenced by Persian culture" };
+const upscSciTech = { "CRISPR-Cas9": "A revolutionary gene-editing technology", "Gaganyaan": "ISRO's first crewed orbital spacecraft mission", "Aditya-L1": "India's first solar mission to study the Sun's corona", "NavIC": "India's independent regional navigation satellite system", "BrahMos": "Supersonic cruise missile jointly developed by India and Russia", "Blockchain": "A decentralized, distributed, and public digital ledger", "Quantum Entanglement": "Phenomenon where particles remain connected across distances", "ITER": "International nuclear fusion research and engineering megaproject", "LIGO": "Observatory designed to detect cosmic gravitational waves", "mRNA Vaccine": "Uses a copy of a molecule to produce an immune response" };
+const upscIR = { "UNSC": "UN organ responsible for maintaining international peace", "Quad": "Strategic security dialogue between India, US, Japan, and Australia", "ASEAN": "Regional intergovernmental organization in Southeast Asia", "SCO (Shanghai Cooperation Organisation)": "Eurasian political, economic, and security alliance", "WTO Peace Clause": "Protects developing countries' food procurement programs from challenges", "UNCLOS": "International agreement defining rights over world's oceans", "Chabahar Port": "Strategic port in Iran developed jointly with India", "FATF": "Global money laundering and terrorist financing watchdog", "BRICS": "Grouping of major emerging economies", "Non-Aligned Movement (NAM)": "Forum of countries not formally aligned with or against any major power bloc" };
+
+function buildCSATQuestions() {
+    for(let i=0; i<30; i++) {
+        const diffs = ["Easy", "Medium", "Hard"]; const diff = diffs[i % 3];
+        if(i % 3 === 0) {
+            let aDays = Math.floor(Math.random() * 10) + 10; let bDays = aDays * 2;
+            let combined = (aDays * bDays) / (aDays + bDays); let ans = combined.toFixed(2);
+            let opts = shuffle([ans, (combined+1).toFixed(2), (combined-2).toFixed(2), (aDays/2).toFixed(2)]);
+            questionsDB.push({
+                id: qId++, topic: "CSAT", difficulty: diff,
+                question: `A takes ${aDays} days to complete a task. B takes ${bDays} days. Working together, approx how many days will they take?`,
+                options: { A: opts[0], B: opts[1], C: opts[2], D: opts[3] }, correct_answer: ['A','B','C','D'][opts.indexOf(ans)],
+                hint: "Use the product over sum formula: (A*B)/(A+B).", fact: `By formula, together they take ${ans} days.`, audience_reliability: 0.9
+            });
+        } else {
+            let mult = Math.floor(Math.random() * 2) + 2; let add = Math.floor(Math.random() * 3) + 1;
+            let s1 = 2; let s2 = (s1*mult)+add; let s3 = (s2*mult)+add; let s4 = (s3*mult)+add; let ans = (s4*mult)+add;
+            let opts = shuffle([ans, ans+mult, ans-add, ans+10]);
+            questionsDB.push({
+                id: qId++, topic: "CSAT", difficulty: diff,
+                question: `Find the next number in the series: ${s1}, ${s2}, ${s3}, ${s4}, ?`,
+                options: { A: opts[0], B: opts[1], C: opts[2], D: opts[3] }, correct_answer: ['A','B','C','D'][opts.indexOf(ans)],
+                hint: "Look for a multiplication followed by addition.", fact: `Pattern: (Previous × ${mult}) + ${add} = ${ans}.`, audience_reliability: 0.7
+            });
+        }
+    }
+}
+
+function shuffle(array) {
+    let arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+}
+function getWrongAnswers(correct, pool, count = 3) {
+    let wrong = pool.filter(item => item !== correct); return shuffle(wrong).slice(0, count);
+}
+
+function buildUPSCQuestions(topic, dict, q1Format, q2Format) {
+    const keys = Object.keys(dict); const values = Object.values(dict); const diffs = ["Easy", "Medium", "Hard", "Expert"];
+    keys.forEach((key, index) => {
+        const val = dict[key]; const diffIndex = index % 4; const diff = diffs[diffIndex]; const reliability = [0.85, 0.70, 0.45, 0.25][diffIndex];
+        const constructedFact = `UPSC Fact: ${key} refers to: ${val}.`;
+
+        let wrong1 = getWrongAnswers(val, values, 3); let opts1 = shuffle([val, ...wrong1]);
+        questionsDB.push({
+            id: qId++, topic: topic, difficulty: diff,
+            question: q1Format.replace('{k}', key),
+            options: { A: opts1[0], B: opts1[1], C: opts1[2], D: opts1[3] },
+            correct_answer: ['A','B','C','D'][opts1.indexOf(val)],
+            hint: `Focus on core principles of ${topic}.`, fact: constructedFact, audience_reliability: reliability
+        });
+
+        let wrong2 = getWrongAnswers(key, keys, 3); let opts2 = shuffle([key, ...wrong2]);
+        questionsDB.push({
+            id: qId++, topic: topic, difficulty: diff,
+            question: q2Format.replace('{v}', val),
+            options: { A: opts2[0], B: opts2[1], C: opts2[2], D: opts2[3] },
+            correct_answer: ['A','B','C','D'][opts2.indexOf(key)],
+            hint: `Use elimination based on conceptual context.`, fact: constructedFact, audience_reliability: reliability
+        });
+    });
+}
+
+function initializeDatabase() {
+    buildUPSCQuestions("Polity", upscPolity, "Regarding Indian Polity, which statement describes '{k}'?", "Which concept is characterized by: '{v}'?");
+    buildUPSCQuestions("Economy", upscEconomy, "In Indian Economy, what does '{k}' refer to?", "Which macroeconomic term is defined as: '{v}'?");
+    buildUPSCQuestions("History", upscHistoryModern, "During the Freedom Struggle, the '{k}' was related to:", "Which historical event is described as: '{v}'?");
+    buildUPSCQuestions("Environment", upscEnvironment, "In Ecology, the term '{k}' refers to:", "Which environmental concept is characterized by: '{v}'?");
+    buildUPSCQuestions("Geography", upscGeography, "In Physical Geography, what describes '{k}'?", "Which geographical phenomenon is characterized by: '{v}'?");
+    buildUPSCQuestions("Art & Culture", upscArtCulture, "In Indian Heritage, '{k}' refers to:", "Which cultural aspect is described as: '{v}'?");
+    buildUPSCQuestions("Science & Tech", upscSciTech, "Regarding Science & Technology, what is '{k}'?", "Which scientific advancement is described as: '{v}'?");
+    buildUPSCQuestions("Intl. Relations", upscIR, "In International Relations, what is '{k}'?", "Which global entity/concept is described as: '{v}'?");
+    buildCSATQuestions();
+
+    document.getElementById('total-q-count').innerText = `${questionsDB.length} MCQs Ready`;
+    const select = document.getElementById('sel-topic');
+    [...new Set(questionsDB.map(q => q.topic))].sort().forEach(t => select.innerHTML += `<option value="${t}">${t}</option>`);
+    
+    setTimeout(() => {
+        const loader = document.getElementById('loading-screen');
+        loader.style.opacity = '0';
+        setTimeout(() => loader.style.display = 'none', 500);
+    }, 1500);
+}
+
+/* =========================================================================
+   3. GAME STATE & UI ROUTING
+========================================================================= */
+const defaultStats = { season: 1, titles: { Rank1: 0, Rank2: 0, Rank3: 0, Rank4: 0, Rank5: 0, Rank6: 0, Rank7: 0 }, storyHighScore: 0, practiceQuestionsAnswered: 0 };
+let userStats = JSON.parse(localStorage.getItem('upsc_sim_stats_v2')) || defaultStats;
+if(!userStats.titles) userStats.titles = defaultStats.titles;
+
+let gameState = { mode: '', questions: [], currentIndex: 0, timerInt: null, timeLeft: 0, timeLimit: 0, lifelines: { fifty: true, poll: true, hint: true }, answered: false };
+let nextActionCallback = () => {};
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+}
+
+function openSettings() { showScreen('settings-screen'); }
+function openPracticeMenu() { showScreen('topic-selector'); }
+
+function openProfile() {
+    document.getElementById('stat-season').innerText = userStats.season;
+    let totalBadges = 0; for(let b in userStats.titles) totalBadges += userStats.titles[b];
+    document.getElementById('stat-titles').innerText = totalBadges;
+    document.getElementById('stat-highscore').innerText = userStats.storyHighScore;
+    document.getElementById('stat-practice').innerText = userStats.practiceQuestionsAnswered;
+
+    const bc = document.getElementById('badges-container'); bc.innerHTML = '';
+    if(totalBadges === 0) bc.innerHTML = `<p style="color:var(--text-muted); width:100%; text-align:center;">No clearances yet.</p>`;
+    else {
+        const bn = { Rank1: 'Aspirant', Rank2: 'Prelims Pass', Rank3: 'Mains Pass', Rank4: 'Interview Pass', Rank5: 'IPS', Rank6: 'IAS', Rank7: 'Cabinet Sec' };
+        for(let key in userStats.titles) {
+            if(userStats.titles[key] > 0) {
+                const el = document.createElement('div'); el.className = `badge ${key}`; el.innerHTML = `<span>${bn[key]}</span> <span>x${userStats.titles[key]}</span>`; bc.appendChild(el);
+            }
+        }
+    }
+    showScreen('profile-stats');
+}
+
+/* =========================================================================
+   4. CORE GAMEPLAY LOGIC
+========================================================================= */
+function startStoryMode() {
+    gameState.mode = 'story'; gameState.currentIndex = 0; gameState.timeLimit = 45; resetLifelines();
+    const e = shuffle(questionsDB.filter(q => q.difficulty === 'Easy')).slice(0, 10);
+    const m = shuffle(questionsDB.filter(q => q.difficulty === 'Medium')).slice(0, 15);
+    const h = shuffle(questionsDB.filter(q => q.difficulty === 'Hard')).slice(0, 15);
+    const ex = shuffle(questionsDB.filter(q => q.difficulty === 'Expert')).slice(0, 10);
+    
+    gameState.questions = [...e, ...m, ...h, ...ex];
+    while(gameState.questions.length < 50 && questionsDB.length >= 50) {
+        gameState.questions.push(questionsDB[Math.floor(Math.random() * questionsDB.length)]);
+    }
+
+    document.getElementById('ladder-container').style.display = 'block';
+    showScreen('gameplay-screen'); loadQuestion();
+}
+
+function startPracticeMode() {
+    const topic = document.getElementById('sel-topic').value; const diff = document.getElementById('sel-diff').value;
+    const time = parseInt(document.getElementById('sel-timer').value); const qCountSelect = document.getElementById('sel-qcount').value;
+
+    let f = questionsDB;
+    if(topic !== 'All') f = f.filter(q => q.topic === topic);
+    if(diff !== 'All') f = f.filter(q => q.difficulty === diff);
+
+    if(f.length === 0) { showAlert('Insufficient Data', 'No MCQs match these specific syllabus filters.'); return; }
+
+    gameState.mode = 'practice'; gameState.questions = shuffle(f); 
+    if(qCountSelect !== 'All') gameState.questions = gameState.questions.slice(0, parseInt(qCountSelect));
+    
+    gameState.currentIndex = 0; gameState.timeLimit = time; resetLifelines();
+    document.getElementById('ladder-container').style.display = 'none';
+    showScreen('gameplay-screen'); loadQuestion();
+}
+
+function loadQuestion() {
+    if(gameState.currentIndex >= gameState.questions.length) {
+        if(gameState.mode === 'story') handleStoryWin();
+        else showAlert('Test Concluded', `Practice module complete.`, () => showScreen('main-menu'));
+        return;
+    }
+
+    const q = gameState.questions[gameState.currentIndex];
+    gameState.answered = false;
+    
+    document.getElementById('game-info').innerText = `Q. ${gameState.currentIndex + 1}${gameState.mode === 'practice' ? '/' + gameState.questions.length : ''} | ${q.topic} (${q.difficulty})`;
+    document.getElementById('question-text').innerText = q.question;
+    
+    if(gameState.mode === 'story') {
+        document.getElementById('ladder-fill').style.width = ((gameState.currentIndex / 50) * 100) + '%';
+        document.getElementById('ladder-text').innerText = `${gameState.currentIndex}/50`;
+    }
+
+    ['A','B','C','D'].forEach(letter => {
+        const btn = document.getElementById('opt-' + letter);
+        btn.querySelector('.text').innerText = q.options[letter];
+        btn.className = 'option-btn'; btn.disabled = false;
+    });
+
+    clearInterval(gameState.timerInt);
+    const td = document.getElementById('timer-display');
+    if(gameState.timeLimit > 0) {
+        gameState.timeLeft = gameState.timeLimit; td.innerText = gameState.timeLeft;
+        td.style.visibility = 'visible'; td.classList.remove('warning');
+        gameState.timerInt = setInterval(tickTimer, 1000);
+    } else { td.style.visibility = 'hidden'; }
+}
+
+function tickTimer() {
+    gameState.timeLeft--;
+    const td = document.getElementById('timer-display'); td.innerText = gameState.timeLeft;
+    if(gameState.timeLeft <= 10) td.classList.add('warning');
+    if(gameState.timeLeft <= 0) { clearInterval(gameState.timerInt); handleTimeout(); }
+}
+
+function selectOption(selLetter) {
+    if(gameState.answered) return;
+    gameState.answered = true; clearInterval(gameState.timerInt); playClick();
+    const q = gameState.questions[gameState.currentIndex];
+    const isCorrect = selLetter === q.correct_answer;
+    
+    ['A','B','C','D'].forEach(l => document.getElementById('opt-' + l).disabled = true);
+    document.getElementById('opt-' + selLetter).classList.add('selected');
+
+    setTimeout(() => {
+        document.getElementById('opt-' + selLetter).classList.remove('selected');
+        document.getElementById('opt-' + q.correct_answer).classList.add('correct');
+        
+        if(!isCorrect) {
+            if(userSettings.vibration && navigator.vibrate) navigator.vibrate([50, 50, 50]); // Error vibrate
+            document.getElementById('opt-' + selLetter).classList.add('wrong');
+            setTimeout(() => {
+                if(gameState.mode === 'practice') showPracticeFact(false);
+                else handleWrongAnswer();
+            }, 1200);
+        } else {
+            if(userSettings.vibration && navigator.vibrate) navigator.vibrate(100); // Success vibrate
+            setTimeout(() => {
+                if(gameState.mode === 'practice') {
+                    userStats.practiceQuestionsAnswered++; saveStats(); showPracticeFact(true);
+                } else handleCorrectAnswer();
+            }, 1000);
+        }
+    }, 1000);
+}
+
+function showPracticeFact(isCorrect) {
+    const panel = document.getElementById('fact-panel');
+    const status = document.getElementById('fact-status');
+    const body = document.getElementById('fact-body');
+    const q = gameState.questions[gameState.currentIndex];
+
+    let tCorrect = userSettings.language === 'hi' ? "✓ सही जवाब" : "✓ Correct";
+    let tWrong = userSettings.language === 'hi' ? "✗ गलत जवाब" : "✗ Incorrect";
+
+    status.innerText = isCorrect ? tCorrect : tWrong;
+    status.className = isCorrect ? "fact-status win" : "fact-status lose";
+    
+    body.innerText = q.fact;
+    panel.classList.add('show');
+}
+
+function nextPracticeQuestion() {
+    document.getElementById('fact-panel').classList.remove('show');
+    setTimeout(() => { gameState.currentIndex++; loadQuestion(); }, 300);
+}
+
+// 7 Ranks Logic
+function handleCorrectAnswer() {
+    gameState.currentIndex++;
+    if(gameState.currentIndex > userStats.storyHighScore) userStats.storyHighScore = gameState.currentIndex;
+    
+    let alert = null;
+    let t = userSettings.language === 'hi' ? i18n.hi : i18n.en;
+
+    if(gameState.currentIndex === 5) { alert = {t: t.r1, b:'Rank1'}; userStats.titles.Rank1++; }
+    if(gameState.currentIndex === 15) { alert = {t: t.r2, b:'Rank2'}; userStats.titles.Rank2++; }
+    if(gameState.currentIndex === 25) { alert = {t: t.r3, b:'Rank3'}; userStats.titles.Rank3++; }
+    if(gameState.currentIndex === 35) { alert = {t: t.r4, b:'Rank4'}; userStats.titles.Rank4++; }
+    if(gameState.currentIndex === 40) { alert = {t: t.r5, b:'Rank5'}; userStats.titles.Rank5++; }
+    if(gameState.currentIndex === 45) { alert = {t: t.r6, b:'Rank6'}; userStats.titles.Rank6++; }
+    
+    saveStats();
+    if(alert) {
+        let msg = userSettings.language === 'hi' ? `Aapne ${gameState.currentIndex} sawal paar kar liye hain.` : `You survived ${gameState.currentIndex} questions.`;
+        showAlert('Milestone Unlocked!', `${msg}<br><br><div class="badge ${alert.b}" style="display:inline-block; margin: 10px auto;">${alert.t}</div>`, () => loadQuestion());
+    } else loadQuestion();
+}
+
+function handleWrongAnswer() {
+    const score = gameState.currentIndex; userStats.season++; saveStats();
+    let msg = userSettings.language === 'hi' ? `Negative marking lagoo. Aapne Attempt #${userStats.season - 1} mein ${score} sawal sahi kiye.` : `Negative Marking Applied. You cleared ${score} questions in Attempt #${userStats.season - 1}.`;
+    showAlert('Disqualified', msg, () => showScreen('main-menu'));
+}
+
+function handleTimeout() {
+    gameState.answered = true; ['A','B','C','D'].forEach(l => document.getElementById('opt-' + l).disabled = true);
+    document.getElementById('opt-' + gameState.questions[gameState.currentIndex].correct_answer).classList.add('correct');
+    
+    if(userSettings.vibration && navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
+    setTimeout(() => {
+        if(gameState.mode === 'story') {
+            const score = gameState.currentIndex; userStats.season++; saveStats();
+            let msg = userSettings.language === 'hi' ? `Samay samapt. Aapne Attempt #${userStats.season - 1} mein ${score} sawal sahi kiye.` : `Time Expired. You cleared ${score} questions in Attempt #${userStats.season - 1}.`;
+            showAlert('Timeout', msg, () => showScreen('main-menu'));
+        } else {
+            showPracticeFact(false); 
+        }
+    }, 1500);
+}
+
+function quitGame() {
+    playClick(); clearInterval(gameState.timerInt);
+    let msg = userSettings.language === 'hi' ? "Kya aap sach mein test beech mein chhodna chahte hain?" : "Are you sure you want to forfeit?";
+    if(gameState.mode === 'story') {
+        if(confirm(msg)) { userStats.season++; saveStats(); showScreen('main-menu'); }
+        else if(gameState.timeLimit > 0) gameState.timerInt = setInterval(tickTimer, 1000);
+    } else showScreen('main-menu');
+}
+
+function handleStoryWin() {
+    userStats.titles.Rank7++; userStats.season++; saveStats();
+    let msg = userSettings.language === 'hi' ? 'Aapne lagatar 50 UPSC star ke sawal sahi kiye hain. Aapne Civil Services ka sabse uncha pad pa liya hai!' : 'You answered all 50 UPSC-level questions correctly. You reached the pinnacle!';
+    showAlert('CABINET SECRETARY!', msg, () => showScreen('main-menu'));
+}
+
+/* =========================================================================
+   5. LIFELINES & UTILITIES
+========================================================================= */
+function resetLifelines() {
+    gameState.lifelines = { fifty: true, poll: true, hint: true };
+    ['5050', 'poll', 'hint'].forEach(id => { const btn = document.getElementById('btn-' + id); btn.classList.remove('used'); btn.disabled = false; });
+}
+
+function use5050() {
+    if(!gameState.lifelines.fifty || gameState.answered) return;
+    playClick(); gameState.lifelines.fifty = false; document.getElementById('btn-5050').classList.add('used'); document.getElementById('btn-5050').disabled = true;
+    const q = gameState.questions[gameState.currentIndex];
+    let wrong = shuffle(['A','B','C','D'].filter(l => l !== q.correct_answer));
+    document.getElementById('opt-' + wrong[0]).classList.add('hidden'); document.getElementById('opt-' + wrong[1]).classList.add('hidden');
+}
+
+function useHint() {
+    if(!gameState.lifelines.hint || gameState.answered) return;
+    playClick(); gameState.lifelines.hint = false; document.getElementById('btn-hint').classList.add('used'); document.getElementById('btn-hint').disabled = true;
+    showAlert('Syllabus Clue', `<i>"${gameState.questions[gameState.currentIndex].hint}"</i>`);
+}
+
+function usePoll() {
+    if(!gameState.lifelines.poll || gameState.answered) return;
+    playClick(); gameState.lifelines.poll = false; document.getElementById('btn-poll').classList.add('used'); document.getElementById('btn-poll').disabled = true;
+    const q = gameState.questions[gameState.currentIndex];
+    const isCorrect = Math.random() <= q.audience_reliability;
+    let chunks = []; let rem = 100;
+    for(let i=0; i<3; i++) { let c = Math.floor(Math.random() * (rem * 0.6)); chunks.push(c); rem -= c; }
+    chunks.push(rem); chunks.sort((a,b) => b-a);
+    let results = { A: 0, B: 0, C: 0, D: 0 };
+    let wrongLetters = shuffle(['A','B','C','D'].filter(l => l !== q.correct_answer));
+    
+    if(isCorrect) { results[q.correct_answer] = chunks[0]; wrongLetters.forEach((l, i) => results[l] = chunks[i+1]); } 
+    else { results[wrongLetters[0]] = chunks[0]; results[q.correct_answer] = chunks[1]; results[wrongLetters[1]] = chunks[2]; results[wrongLetters[2]] = chunks[3]; }
+
+    const chart = document.getElementById('poll-chart'); chart.innerHTML = '';
+    ['A','B','C','D'].forEach(l => { chart.innerHTML += `<div class="bar-wrapper"><div class="bar-pct">${results[l]}%</div><div class="bar" style="height: 0px;" data-target="${results[l]}"></div><div class="bar-label">${l}</div></div>`; });
+    document.getElementById('poll-modal').classList.add('active');
+    setTimeout(() => { document.querySelectorAll('.bar').forEach(b => b.style.height = b.getAttribute('data-target') + '%'); }, 100);
+}
+
+function saveStats() { localStorage.setItem('upsc_sim_stats_v2', JSON.stringify(userStats)); }
+function showAlert(title, message, callback = null) { document.getElementById('alert-title').innerHTML = title; document.getElementById('alert-message').innerHTML = message; nextActionCallback = callback || (() => {}); document.getElementById('alert-modal').classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function shareStats() {
+    let t = userSettings.language === 'hi' ? i18n.hi : i18n.en;
+    let hb = 'Civil Services Aspirant';
+    if(userStats.titles.Rank1 > 0) hb = t.r1; if(userStats.titles.Rank2 > 0) hb = t.r2;
+    if(userStats.titles.Rank3 > 0) hb = t.r3; if(userStats.titles.Rank4 > 0) hb = t.r4;
+    if(userStats.titles.Rank5 > 0) hb = t.r5; if(userStats.titles.Rank6 > 0) hb = t.r6; if(userStats.titles.Rank7 > 0) hb = t.r7;
+    
+    const msg = userSettings.language === 'hi' 
+        ? `Mera UPSC Prelims Simulator mein Highest Score ${userStats.storyHighScore} hai, aur meri rank [${hb}] hai! Kya aap is cut-off ko paar kar sakte hain? 🇮🇳📚`
+        : `I reached the [${hb}] rank in Attempt #${userStats.season} of the UPSC Prelims Simulator with a score of ${userStats.storyHighScore}! Think you can clear the cut-off? 🇮🇳📚`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// Initialization
+window.onload = () => { applySettings(); initializeDatabase(); };
+
+</script>
+</body>
+</html>
